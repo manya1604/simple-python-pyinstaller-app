@@ -1,10 +1,10 @@
 pipeline {
-    agent none
+    agent any
     stages {
         stage('Build') {
             agent {
                 docker {
-                    image 'python:2-alpine'
+                    image 'python:3-alpine'  // Switched to Python 3
                 }
             }
             steps {
@@ -18,7 +18,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'py.test --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
+                sh 'pytest --verbose --junit-xml test-reports/results.xml sources/test_calc.py'  // Changed py.test to pytest
             }
             post {
                 always {
@@ -29,7 +29,7 @@ pipeline {
         stage('Deliver') {
             agent {
                 docker {
-                    image 'cdrx/pyinstaller-linux:python2'
+                    image 'cdrx/pyinstaller-linux:python3'  // Switched to Python 3
                 }
             }
             steps {
@@ -37,7 +37,7 @@ pipeline {
             }
             post {
                 success {
-                    archiveArtifacts 'dist/add2vals'
+                    archiveArtifacts 'dist/*'  // Generalized the path
                 }
             }
         }
