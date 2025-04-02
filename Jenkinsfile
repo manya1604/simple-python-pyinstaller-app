@@ -1,45 +1,49 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.11-slim'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+    
+    options {
+        skipStagesAfterUnstable()
+    }
+    
     stages {
-        stage('Build') {
-            agent {
-                docker {
-                    image 'python:3-alpine'  // Switched to Python 3
-                }
+        stage('Setup') {
+            steps {
+                sh '''
+                    apt-get update && apt-get install -y binutils
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
             }
+        }
+        
+        stage('Build') {
             steps {
                 sh 'python -m py_compile sources/add2vals.py sources/calc.py'
+                stash name: 'sources', includes: 'sources/**'
             }
         }
+        
         stage('Test') {
-            agent {
-                docker {
-                    image 'qnib/pytest'
-                }
-            }
             steps {
-                sh 'pytest --verbose --junit-xml test-reports/results.xml sources/test_calc.py'  // Changed py.test to pytest
-            }
-            post {
-                always {
-                    junit 'test-reports/results.xml'
-                }
+                sh 'py.test --junit-xml test-reports/results.xml sources/test_calc.py'
+                junit 'test-reports/results.xml'
             }
         }
+        
         stage('Deliver') {
-            agent {
-                docker {
-                    image 'cdrx/pyinstaller-linux:python3'  // Switched to Python 3
-                }
-            }
             steps {
-                sh 'pyinstaller --onefile sources/add2vals.py'
+                sh "pyinstaller --onefile sources/add2vals.py"
             }
             post {
                 success {
-                    archiveArtifacts 'dist/*'  // Generalized the path
+                    archiveArtifacts 'dist/add2vals'
                 }
             }
         }
     }
-}
+} 
